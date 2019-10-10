@@ -40,10 +40,12 @@ namespace Hotel
                             CheckIn();
                             break;
                         case 4:
+                            CheckOut();
                             break;
                         case 5:
                             break;
                         case 6:
+                            Console.WriteLine("Agur!");
                             break;
                         default:
                             Console.WriteLine("Introduce un número entre el 1-6.");
@@ -61,43 +63,41 @@ namespace Hotel
         }
         public static void RegistrarCliente()
         {
-            bool dniExists = false;
-            string nombre, apellido;
-            do
+            Console.WriteLine("Introduce tu DNI: o pulsa 0 para salir:");
+            string dni = Console.ReadLine();
+            if (dni == "0")
             {
-                dniExists = false;
-                Console.WriteLine("Introduce tu DNI: o pulsa 0 para salir:");
-                string dni = Console.ReadLine();
-                if (dni == "0")
+                Menu();
+            }
+            else
+            {
+                if (!DNIExists(dni))
                 {
-                    Menu();
-                }
-                else
-                {
-                    if (!DNIExists(dni))
+                    Console.WriteLine("Introduce tu nombre:");
+                    string nombre = Console.ReadLine();
+                    Console.WriteLine("Introduce tu apellido:");
+                    string apellido = Console.ReadLine();
+                    string query = $"INSERT INTO CLIENTES VALUES('{nombre}', '{apellido}','{dni}')";
+                    if (NonQuery(query))
                     {
-                        Console.WriteLine("Introduce tu nombre:");
-                        nombre = Console.ReadLine();
-                        Console.WriteLine("Introduce tu apellido:");
-                        apellido = Console.ReadLine();
-                        string query = $"INSERT INTO CLIENTES VALUES('{nombre}', '{apellido}','{dni}')";
-                        if (NonQuery(query))
-                        {
-                            Console.WriteLine("Usuario registrado.");
-                            Menu();
-                        }
-                        else
-                        {
-                            Console.WriteLine("Error.");
-                        }
+                        Console.Clear();
+                        Console.WriteLine("Usuario registrado.");
+                        Menu();
                     }
                     else
                     {
-                        Console.WriteLine("El DNI introducido ya esta registrado.");
-                        dniExists = true;
+                        Console.Clear();
+                        Console.WriteLine("Error.");
+                        Menu();
                     }
                 }
-            } while (dniExists);
+                else
+                {
+                    Console.Clear();
+                    Console.WriteLine("El DNI introducido ya esta registrado.");
+                    Menu();
+                }
+            }
         }
         public static bool DNIExists(string dni)
         {
@@ -147,17 +147,20 @@ namespace Hotel
                         $"WHERE DNI  LIKE '{dni}'";
                     if (NonQuery(query))
                     {
+                        Console.Clear();
                         Console.WriteLine("Datos actualizados con éxito");
                         Menu();
                     }
                     else
                     {
+                        Console.Clear();
                         Console.WriteLine("Error");
+                        Menu();
                     }
                 }
                 else
                 {
-
+                    Console.Clear();
                     Console.WriteLine("Debes estar registrado para modificar tus datos");
                     RegistrarCliente();
                 }
@@ -165,98 +168,184 @@ namespace Hotel
         }
         public static void CheckIn()
         {
-            bool error = false;
-            do
+            Console.WriteLine("Introduce tu DNI: o pulsa 0 para salir:");
+            string dni = Console.ReadLine();
+            if (dni == "0")
             {
-                error = false;
-                Console.WriteLine("Introduce tu DNI: o pulsa 0 para salir:");
-                string dni = Console.ReadLine();
-                if (dni == "0")
+                Menu();
+            }
+            else
+            {
+                if (DNIExists(dni))
                 {
-                    Menu();
-                }
-                else
-                {
-                    if (DNIExists(dni))
+                    int idCliente = 0;
+                    int idHabitacion = 0;
+                    connection.Open();
+                    string query = $"Select ID from Clientes where DNI like '{dni}'";
+                    SqlCommand command = new SqlCommand(query, connection);
+                    SqlDataReader reader = command.ExecuteReader();
+                    if (reader.Read())
                     {
-                        int idCliente = 0;
-                        int idHabitacion = 0;
+                        idCliente = Convert.ToInt32(reader[0].ToString());
+                    }
+                    connection.Close();
+                    connection.Open();
+                    query = $"Select * from habitaciones where estado like 'l'";
+                    command = new SqlCommand(query, connection);
+                    reader = command.ExecuteReader();
+                    while (reader.Read())
+                    {
+                        Console.WriteLine($"{reader[0].ToString()} {reader[1].ToString()}");
+                    }
+                    connection.Close();
+                    Console.WriteLine("*********************************");
+                    Console.Write("Introduzca la habitación que desea reservar:    ");
+
+                    if (Int32.TryParse(Console.ReadLine(), out idHabitacion))
+                    {
                         connection.Open();
-                        string query = $"Select ID from Clientes where DNI like '{dni}'";
-                        SqlCommand command = new SqlCommand(query, connection);
-                        SqlDataReader reader = command.ExecuteReader();
-                        if (reader.Read())
-                        {
-                            idCliente = Convert.ToInt32(reader[0].ToString());
-                        }
-                        connection.Close();
-                        connection.Open();
-                        query = $"Select * from habitaciones where estado like 'l'";
+                        query = $"SELECT * FROM HABITACIONES WHERE ID={idHabitacion} AND ESTADO LIKE 'L'";
                         command = new SqlCommand(query, connection);
                         reader = command.ExecuteReader();
-                        while (reader.Read())
+                        if (reader.Read())
                         {
-                            Console.WriteLine($"{reader[0].ToString()} {reader[1].ToString()}");
-                        }
-                        connection.Close();
-                        Console.WriteLine("*********************************");
-                        Console.Write("Introduzca la habitación que desea reservar:    ");
-                        if (Int32.TryParse(Console.ReadLine(), out idHabitacion))
-                        {
-                            connection.Open();
-                            query = $"SELECT * FROM HABITACIONES WHERE ID={idHabitacion} AND ESTADO LIKE 'L'";
-                            command = new SqlCommand(query, connection);
-                            reader = command.ExecuteReader();
-                            if (reader.Read())
+                            connection.Close();
+                            query = $"INSERT INTO RESERVAS(IDHABITACION,IDCLIENTE,FECHACHECKIN)" +
+                                $" VALUES({idHabitacion},{idCliente},'{DateTime.Now}')";
+                            if (NonQuery(query))
                             {
-                                connection.Close();
-                                query = $"INSERT INTO RESERVAS(IDHABITACION,IDCLIENTE,FECHACHECKIN)" +
-                                    $" VALUES({idHabitacion},{idCliente},'{DateTime.Now}')";
+                                query = $"UPDATE HABITACIONES SET ESTADO = 'O' WHERE ID = '{idHabitacion}'";
                                 if (NonQuery(query))
                                 {
-                                    query = $"UPDATE HABITACIONES SET ESTADO = 'O' WHERE ID = '{idHabitacion}'";
-                                    if (NonQuery(query))
-                                    {
-                                        Console.WriteLine("Habitación reservada con éxito.");
-                                        Menu();
-                                    }
-                                    else
-                                    {
-                                        Console.WriteLine("Error");
-                                        error = true;
-                                        connection.Close();
-                                    }
+                                    Console.Clear();
+                                    Console.WriteLine("Habitación reservada con éxito.");
+                                    Menu();
                                 }
                                 else
                                 {
+                                    Console.Clear();
                                     Console.WriteLine("Error");
-                                    error = true;
+                                    Menu();
                                     connection.Close();
                                 }
                             }
                             else
                             {
-                                Console.WriteLine("Introduzca un número de habitación correcto");
-                                error = true;
+                                Console.Clear();
+                                Console.WriteLine("Error");
                                 connection.Close();
                             }
                         }
                         else
                         {
+                            Console.Clear();
                             Console.WriteLine("Introduzca un número de habitación correcto");
-                            error = true;
-               
+                            connection.Close();
+                        }
+                    }
+                    else
+                    {
+                        Console.Clear();
+                        Console.WriteLine("Introduzca un número de habitación correcto");
+                    }
+                }
+                else
+                {
+                    Console.Clear();
+                    Console.WriteLine("Debes estar registrado para reservar habitaciones");
+                    Menu();
+                }
+            }
+
+        }
+        public static void CheckOut()
+        {
+            Console.WriteLine("Introduce tu DNI: o pulsa 0 para salir:");
+            string dni = Console.ReadLine();
+            if (dni == "0")
+            {
+                Menu();
+            }
+            else
+            {
+                if (DNIExists(dni))
+                {
+                    string query = $"SELECT ID FROM CLIENTES WHERE DNI LIKE '{dni}'";
+                    SqlCommand command = new SqlCommand(query, connection);
+                    connection.Open();
+                    SqlDataReader reader = command.ExecuteReader();
+                    int idCliente = 0;
+                    if (reader.Read())
+                    {
+                        idCliente = Convert.ToInt32(reader[0].ToString());
+                    }
+                    connection.Close();
+
+                    query = $"SELECT * FROM RESERVAS WHERE IDCLIENTE = {idCliente} AND FECHACHECKOUT IS NULL";
+                    command = new SqlCommand(query, connection);
+                    connection.Open();
+                    reader = command.ExecuteReader();
+                    Console.WriteLine("Número reserva | Habitación  | Fecha CheckIn");
+                    Console.WriteLine("***************************************************");
+
+                    while (reader.Read())
+                    {
+                        Console.WriteLine($"\t{reader[0].ToString()}  \t {reader[1].ToString()}\t{reader[3].ToString()}");
+                    }
+                    connection.Close();
+                    Console.WriteLine("********************************");
+                    Console.Write("Introduce el número de la reserva en la que hacer el check out:   ");
+                    int idReserva = Convert.ToInt32(Console.ReadLine());
+
+                    query = $"SELECT IDHABITACION FROM RESERVAS WHERE ID = {idReserva} AND FECHACHECKOUT IS NULL";
+                    command = new SqlCommand(query, connection);
+                    connection.Open();
+                    reader = command.ExecuteReader();
+                    if (reader.Read())
+                    {
+                        int idHabitacion = Convert.ToInt32(reader[0].ToString());
+                        connection.Close();
+                        query = $"UPDATE RESERVAS SET FECHACHECKOUT = '{DateTime.Now}' WHERE ID= {idReserva}";
+                        if (NonQuery(query))
+                        {
+                            query = $"UPDATE HABITACIONES SET ESTADO = 'L' WHERE ID = {idHabitacion}";
+                            if (NonQuery(query))
+                            {
+                                Console.Clear();
+                                Console.WriteLine("Check OUT realizado con éxito.");
+                                Menu();
+
+                            }
+                            else
+                            {
+                                Console.Clear();
+                                Console.WriteLine("Error");
+                                Menu();
+                            }
+                        }
+                        else
+                        {
+                            Console.Clear();
+                            Console.WriteLine("Error");
+                            Menu();
                         }
 
                     }
                     else
                     {
-                        Console.WriteLine("Debes estar registrado para reservar habitaciones");
-                        RegistrarCliente();
+                        connection.Close();
+                        Console.Clear();
+                        Console.WriteLine("Introduce un número de reserva correcto.");
+                        CheckOut();
                     }
                 }
-            } while (error);
-
+                else
+                {
+                    Console.Clear();
+                    Console.WriteLine("Debes estar registrado para hacer el check out.");
+                    Menu();
+                }
+            }
         }
     }
 }
